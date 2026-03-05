@@ -1,129 +1,35 @@
-# Inventory & Margin Optimization
+# Inventory Margin Optimization
 
-**Case Study: SQL Analytics**
+## **Project Overview**
 
-> **Executive Summary:**  
-> Taste of the World Cafe faced a disconnect between menu complexity and operational profitability. By leveraging advanced SQL techniques (CTEs, Window Functions), this analysis categorized menu efficiency, revealing that the highest-volume item (Hamburger) was underperforming in revenue, while the "Italian" segment was a hidden driver of profitability. The recommendations below outline a strategy to optimize staffing for lunch peaks and restructure the menu to feature high-margin items.
+**The Chaos on the Ground:** Taste of the World Cafe faced a critical disconnect between menu complexity and operational profitability. Kitchen lines were bogged down during peak hours by high-volume items that weren't actually driving revenue, while high-margin items were buried in the menu.
+**The Solution:** I built an analytical "Control Tower" using advanced SQL (CTEs, Window Functions) to categorize menu efficiency. This directly exposed that the highest-volume item (Hamburger) was underperforming in revenue, providing a data-backed roadmap to restructure the menu and optimize staffing for specific peak hours.
 
----
+## **Data Sources**
 
-### Key Insights
+- **Point of Sale (POS) Transaction Logs (`fact_orders`):** Raw operational data capturing every transaction, order time, and item ID.
+- **Menu Reference Data (`dim_menu_items`):** Dimensional data containing item prices, categories, and descriptions.
 
-| **Top Revenue**                    | **Peak Volume**                 | **Star Item**                                  | **Fusion Factor**                          |
-| :--------------------------------- | :------------------------------ | :--------------------------------------------- | :----------------------------------------- |
-| **Italian**<br>Cuisine Performance | **Lunch**<br>Mon/Fri/Sun Demand | **Korean Beef Bowl**<br>High Profit / High Vol | **49% Drop-off**<br>Conversion Opportunity |
+## **Process**
 
----
+- **Data Architecture (SQL):** Engineered a robust dimensional model (Star Schema), joining operational fact tables with menu dimensions to create an environment optimized for complex analytical querying.
+- **Temporal Traffic Analysis:** Deployed cron-style SQL ordering to identify specific bottleneck hours and measure exact throughput demand on the kitchen.
+- **Strategic Matrix (CTE + NTILE):** Engineered automated SQL logic to classify items into 'Star', 'Puzzle', 'Workhorse', and 'Dud' categories removing manual guesswork from menu engineering.
+- **Basket Analysis:** Executed self-joins on historical transaction data to map true cross-cuisine purchasing behavior.
 
-## Query Showcase
+## **Key Findings**
 
-### 1. Temporal Traffic Analysis
+- **Volume vs. Value Friction:** Proved that the Hamburger (Highest Volume) was merely a 'Workhorse', failing to drive primary revenue and eating up valuable grill capacity.
+- **The "Fusion Factor":** Basket analysis revealed a high frequency of customers pairing American staples with Asian sides, highlighting an untapped 49% conversion opportunity for bundled combos.
+- **Operational Peaks:** Hard data confirmed that Monday, Friday, and Sunday lunch hours were the most critical throughput bottlenecks threatening service SLAs.
 
-**Identifying the bottleneck hours using cron-style SQL ordering.**
+## **Recommendations (Operational Scripts)**
 
-```sql
-SELECT
-    DAYNAME(order_date) AS day_of_week,
-    HOUR(order_time) AS hour_of_day,
-    COUNT(DISTINCT order_id) AS number_of_orders
-FROM fact_orders
-GROUP BY
-    DAYOFWEEK(order_date), day_of_week, hour_of_day
-ORDER BY
-    DAYOFWEEK(order_date), number_of_orders DESC;
-```
+- **Feature 'Stars':** Immediately elevate the visibility of the **Korean Beef Bowl** (High Profit / High Volume) across all digital and physical menus to maximize margin capture.
+- **Menu Restructuring:** Relaunch the "Italian" segment as the primary revenue puzzle piece to stimulate underperforming categories.
+- **Labor Resourcing:** Restructure the front-of-house and back-of-house shift scheduling to double coverage strictly during the identified Mon/Fri/Sun lunch peaks.
 
-- **Result:** Lunch hours on Mon/Fri/Sun are critical peaks. Recommended staffing increase specifically for these windows to maintain service SLAs.
+## **Next Steps**
 
-### 2. Strategic Menu Matrix (CTE + NTILE)
-
-**Classification of menu items into 'Stars', 'Puzzle', 'Workhorse', and 'Dud'.**
-
-```sql
-WITH total_order_revenue AS (
-    SELECT
-        m.item_name,
-        COUNT(o.order_id) AS total_orders,
-        SUM(m.price) AS total_revenue
-    FROM dim_menu_items m
-    INNER JOIN fact_orders o ON m.menu_item_id = o.item_id
-    GROUP BY m.item_name
-),
-ItemRanks AS (
-    SELECT
-        item_name, total_orders, total_revenue,
-        NTILE(2) OVER (ORDER BY total_orders DESC) AS order_ntile,
-        NTILE(2) OVER (ORDER BY total_revenue DESC) AS revenue_ntile
-    FROM total_order_revenue
-)
-SELECT
-    item_name, total_orders, total_revenue,
-    CASE
-        WHEN order_ntile = 1 AND revenue_ntile = 1 THEN 'Star'
-        WHEN order_ntile = 1 AND revenue_ntile = 2 THEN 'Workhorse'
-        WHEN order_ntile = 2 AND revenue_ntile = 1 THEN 'Puzzle'
-        WHEN order_ntile = 2 AND revenue_ntile = 2 THEN 'Dud'
-    END AS item_category
-FROM ItemRanks;
-```
-
-- **Result:** Isolated 'Stars' vs 'Duds'. Revealed that the Hamburger (Volume Leader) isn't the primary Revenue Driver, prompting a re-valuation of bundling strategies.
-
----
-
-## Building the Data Pipeline
-
-### 1. Schema Foundation (Dimensional Modeling)
-
-**Constructed a robust dimensional model (Star Schema).**
-Joined operational fact tables with menu dimension items to create a reliable playground for complex analytical queries.
-
-### 2. Basket Analysis (Self-Joins)
-
-**Executed self-joins on the `fact_orders` table.**
-Uncovered cross-cuisine purchasing behavior. Found that customers frequently pair American staples with Asian sides.
-
-### 3. Operational Logic (CASE Expressions)
-
-**Engineered automated categorization.**
-This removed manual guesswork for the management team, providing a live "Menu Dashboard" via SQL views.
-
----
-
-## Strategic Recommendations
-
-### Revenue Gains
-
-- **Promote "Stars":** Focus on items like the **Korean Beef Bowl** to maximize high-margin sales.
-- **Staffing Optimization:** Target staffing for peak lunchtime windows (Mon, Fri, Sun).
-
-### Menu Optimization
-
-- **Italian "Puzzles":** Promote the Italian category as the primary revenue segment that needs higher visibility.
-- **Fusion Combos:** Launch combos based on identified basket pairing trends (e.g., Burger + Edamame).
-
----
-
-## Technical Implementation
-
-### Database Schema
-
-The analysis is built on a Star Schema structure:
-
-- **`fact_orders`**: Transactional table containing `order_id`, `item_id`, `order_date`, and `order_time`.
-- **`dim_menu_items`**: Dimension table containing `menu_item_id`, `item_name`, `category`, and `price`.
-
-### Setup Instructions
-
-1.  **Prerequisites:** Install [MySQL Workbench](https://www.mysql.com/products/workbench/).
-2.  **Data Import:**
-    - Unzip `Restaurant Orders MySQL.zip`.
-    - Load the `.csv` files into your local MySQL instance.
-    - Run `Restaurant Order Analysis.sql` to generate the views and tables.
-
----
-
-## Contact
-
-**Need SQL Clarity?**
-[Email](mailto:mcam215@gmail.com) | [LinkedIn](https://www.linkedin.com/in/michaelcampbell215) | [GitHub](https://github.com/michaelcampbell215)
+- **Combo Pipeline:** Launch designated "Fusion Combos" (e.g., Burger + Edamame) to programmatically increase average ticket size based on detected basket pairings.
+- **Automated Menu Dashboard:** Connect the engineered SQL views directly into a BI tool (e.g., Tableau) to provide management with a live, self-updating matrix of menu performance.
